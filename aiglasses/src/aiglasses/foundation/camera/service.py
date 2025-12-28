@@ -188,6 +188,32 @@ class PiCameraBackend(CameraBackend):
             self._camera.close()
             self._camera = None
 
+    async def set_resolution(self, width: int, height: int) -> bool:
+        """Change camera resolution dynamically."""
+        if not self._camera:
+            return False
+        
+        try:
+            # Stop camera, reconfigure, restart
+            self._camera.stop()
+            
+            config = self._camera.create_still_configuration(
+                main={"size": (width, height)}
+            )
+            self._camera.configure(config)
+            self._camera.start()
+            
+            self.logger.info("pi_camera_resolution_changed", width=width, height=height)
+            return True
+        except Exception as e:
+            self.logger.error("pi_camera_resolution_change_failed", error=str(e))
+            # Try to restart with previous config
+            try:
+                self._camera.start()
+            except:
+                pass
+            return False
+
     async def capture(
         self,
         format: str = "jpeg",
@@ -291,6 +317,24 @@ class CameraService(BaseService):
             await self._backend.teardown()
 
         self._frame_cache.clear()
+
+    async def set_resolution(self, width: int, height: int) -> bool:
+        """Change camera resolution.
+        
+        Args:
+            width: New width in pixels
+            height: New height in pixels
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._backend:
+            return False
+        
+        if hasattr(self._backend, 'set_resolution'):
+            return await self._backend.set_resolution(width, height)
+        
+        return False
 
     def register_services(self, server: grpc_aio.Server) -> None:
         """Register gRPC services."""

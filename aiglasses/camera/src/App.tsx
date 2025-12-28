@@ -15,6 +15,20 @@ interface TestApp {
   running: boolean
 }
 
+interface Detection {
+  class_id: number
+  class_name: string
+  confidence: number
+  bbox: [number, number, number, number]
+}
+
+interface DetectorStatus {
+  enabled: boolean
+  model: string | null
+  classes: string[]
+  total_classes: number
+}
+
 const RESOLUTIONS = [
   { label: '4K (3840×2160)', width: 3840, height: 2160 },
   { label: '1080p (1920×1080)', width: 1920, height: 1080 },
@@ -26,7 +40,7 @@ const RESOLUTIONS = [
 const TEST_APPS: TestApp[] = [
   { id: 'what_am_i_seeing', name: 'What Am I Seeing?', description: 'Describe current view using LLM', running: false },
   { id: 'what_am_i_wearing', name: 'What Am I Wearing?', description: 'Analyze clothing and colors', running: false },
-  { id: 'object_detection', name: 'Object Detection', description: 'Run IMX500 on-sensor detection', running: false },
+  { id: 'object_detection', name: 'Object Detection', description: 'YOLO detection via Hailo AI HAT+', running: false },
 ]
 
 // Backend URL - use direct URL for MJPEG stream to bypass Vite proxy issues
@@ -45,6 +59,9 @@ function App() {
   const [testApps, setTestApps] = useState(TEST_APPS)
   const [lastResult, setLastResult] = useState<string | null>(null)
   const [isCapturing, setIsCapturing] = useState(false)
+  const [detectorStatus, setDetectorStatus] = useState<DetectorStatus | null>(null)
+  const [liveDetections, setLiveDetections] = useState<Detection[]>([])
+  const [isDetecting, setIsDetecting] = useState(false)
   const frameCountRef = useRef(0)
   const lastTimeRef = useRef(Date.now())
   const imgRef = useRef<HTMLImageElement>(null)
@@ -81,6 +98,23 @@ function App() {
     checkStatus()
     const interval = setInterval(checkStatus, 5000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Check detector status
+  useEffect(() => {
+    const checkDetector = async () => {
+      try {
+        const res = await fetch('/api/detector')
+        if (res.ok) {
+          const data = await res.json()
+          setDetectorStatus(data)
+        }
+      } catch {
+        setDetectorStatus(null)
+      }
+    }
+    
+    checkDetector()
   }, [])
 
   // Update stream URL when resolution changes
@@ -143,6 +177,27 @@ function App() {
       setLastResult(`Error: ${e}`)
     } finally {
       setIsCapturing(false)
+    }
+  }
+
+  const runLiveDetection = async () => {
+    setIsDetecting(true)
+    try {
+      const res = await fetch('/api/detect')
+      const data = await res.json()
+      setLiveDetections(data.detections || [])
+      if (data.detections?.length > 0) {
+        const summary = data.detections.slice(0, 5).map((d: Detection) => 
+          `${d.class_name} (${Math.round(d.confidence * 100)}%)`
+        ).join(', ')
+        setLastResult(`🔍 Found ${data.count} objects in ${data.inference_ms}ms: ${summary}`)
+      } else {
+        setLastResult(`🔍 No objects detected (${data.inference_ms}ms)`)
+      }
+    } catch (e) {
+      setLastResult(`Error: ${e}`)
+    } finally {
+      setIsDetecting(false)
     }
   }
 
@@ -260,15 +315,38 @@ function App() {
             </section>
           )}
 
+          <section className="control-section">
+            <h2>Live Detection</h2>
+            <button 
+              className="action-btn detect"
+              onClick={runLiveDetection}
+              disabled={isDetecting || !detectorStatus?.enabled}
+            >
+              {isDetecting ? '🔍 Detecting...' : '🔍 Run Detection'}
+            </button>
+            {liveDetections.length > 0 && (
+              <div className="detection-list">
+                {liveDetections.map((det, i) => (
+                  <div key={i} className="detection-item">
+                    <span className="det-class">{det.class_name}</span>
+                    <span className="det-conf">{Math.round(det.confidence * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="control-section info">
-            <h2>Camera Info</h2>
+            <h2>Hardware Info</h2>
             <dl className="info-list">
-              <dt>Sensor</dt>
+              <dt>Camera</dt>
               <dd className="mono">Sony IMX500</dd>
-              <dt>Interface</dt>
-              <dd className="mono">CSI / libcamera</dd>
-              <dt>AI Chip</dt>
-              <dd className="mono">On-sensor NPU</dd>
+              <dt>AI HAT+</dt>
+              <dd className={`mono ${detectorStatus?.enabled ? 'status-ok' : 'status-warn'}`}>
+                {detectorStatus?.enabled ? `Hailo-8 (${detectorStatus.model})` : 'Not available'}
+              </dd>
+              <dt>Classes</dt>
+              <dd className="mono">{detectorStatus?.total_classes || 0} COCO objects</dd>
               <dt>Resolution</dt>
               <dd className="mono">{status.resolution}</dd>
             </dl>
