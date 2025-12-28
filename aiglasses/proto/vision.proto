@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package aiglasses.vision;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.vision";
+
+// Vision Service - object detection pipeline, IMX500 + HAT+ fusion
+service VisionService {
+  // Health check
+  rpc GetHealth(aiglasses.common.Empty) returns (aiglasses.common.HealthResponse);
+  
+  // Get service status
+  rpc GetStatus(aiglasses.common.Empty) returns (VisionStatus);
+  
+  // Detect objects in a frame
+  rpc DetectObjects(DetectRequest) returns (DetectResponse);
+  
+  // Describe the scene in natural language
+  rpc DescribeScene(DescribeRequest) returns (DescribeResponse);
+  
+  // Run detection on live camera feed
+  rpc DetectLive(DetectLiveRequest) returns (stream DetectResponse);
+  
+  // Subscribe to continuous detections
+  rpc SubscribeDetections(DetectionSubscription) returns (stream DetectionEvent);
+  
+  // Get available models
+  rpc ListModels(aiglasses.common.Empty) returns (ModelList);
+  
+  // Load/unload a model
+  rpc LoadModel(LoadModelRequest) returns (LoadModelResponse);
+  rpc UnloadModel(UnloadModelRequest) returns (aiglasses.common.Empty);
+  
+  // Configure vision pipeline
+  rpc Configure(VisionConfig) returns (ConfigureResponse);
+}
+
+message VisionStatus {
+  bool available = 1;
+  bool imx500_available = 2;
+  bool hailo_available = 3;
+  repeated LoadedModel loaded_models = 4;
+  string pipeline_state = 5;  // "idle", "processing", "error"
+  string error_message = 6;
+  VisionMetrics metrics = 7;
+}
+
+message LoadedModel {
+  string id = 1;
+  string name = 2;
+  string backend = 3;  // "imx500", "hailo", "cpu"
+  bool ready = 4;
+}
+
+message VisionMetrics {
+  float avg_detection_ms = 1;
+  float avg_describe_ms = 2;
+  int64 total_frames_processed = 3;
+  int64 total_detections = 4;
+}
+
+message DetectRequest {
+  oneof source {
+    string frame_id = 1;  // Reference to captured frame
+    bytes image_data = 2;  // Raw image bytes
+  }
+  string model = 3;  // Empty = use default
+  float min_confidence = 4;  // 0.0-1.0, default 0.5
+  repeated string filter_labels = 5;  // Empty = all labels
+  bool use_hailo = 6;  // Also run Hailo if available
+  bool fuse_results = 7;  // Merge IMX500 + Hailo results
+}
+
+message DetectResponse {
+  aiglasses.common.FrameRef frame_ref = 1;
+  repeated aiglasses.common.Detection detections = 2;
+  int64 inference_time_ms = 3;
+  string model_used = 4;
+  map<string, int64> backend_times_ms = 5;  // Per-backend timing
+}
+
+message DescribeRequest {
+  oneof source {
+    string frame_id = 1;
+    bytes image_data = 2;
+  }
+  repeated aiglasses.common.Detection detections = 3;  // Pre-computed detections
+  string prompt = 4;  // Optional context/question
+  int32 max_tokens = 5;  // Max description length
+}
+
+message DescribeResponse {
+  string description = 1;
+  aiglasses.common.FrameRef frame_ref = 2;
+  repeated aiglasses.common.Detection detections = 3;  // Detections used
+  int64 latency_ms = 4;
+}
+
+message DetectLiveRequest {
+  int32 max_fps = 1;  // Throttle detection rate
+  float min_confidence = 2;
+  repeated string filter_labels = 3;
+  int32 duration_seconds = 4;  // 0 = until cancelled
+}
+
+message DetectionSubscription {
+  float min_confidence = 1;
+  repeated string filter_labels = 2;
+  int32 max_fps = 3;
+  bool include_frame_ref = 4;
+}
+
+message DetectionEvent {
+  aiglasses.common.FrameRef frame_ref = 1;
+  repeated aiglasses.common.Detection detections = 2;
+  aiglasses.common.Timestamp timestamp = 3;
+  int64 inference_time_ms = 4;
+}
+
+message ModelList {
+  repeated ModelInfo models = 1;
+}
+
+message ModelInfo {
+  string id = 1;
+  string name = 2;
+  string type = 3;  // "detection", "classification", "segmentation"
+  string backend = 4;  // "imx500", "hailo", "cpu"
+  repeated string labels = 5;
+  int64 size_bytes = 6;
+  bool loaded = 7;
+  string description = 8;
+}
+
+message LoadModelRequest {
+  string model_id = 1;
+  string backend = 2;  // Empty = auto-select
+}
+
+message LoadModelResponse {
+  bool success = 1;
+  string message = 2;
+  LoadedModel model = 3;
+}
+
+message UnloadModelRequest {
+  string model_id = 1;
+}
+
+message VisionConfig {
+  string default_model = 1;
+  float default_confidence = 2;
+  bool enable_hailo = 3;
+  bool enable_fusion = 4;
+  int32 max_concurrent_requests = 5;
+}
+
+message ConfigureResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+

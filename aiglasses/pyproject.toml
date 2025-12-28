@@ -1,0 +1,146 @@
+[build-system]
+requires = ["setuptools>=68", "wheel", "grpcio-tools>=1.60"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiglasses"
+version = "0.1.0"
+description = "Open-source AI Glasses Platform for Raspberry Pi 5"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "AI Glasses Team"}
+]
+keywords = ["ai", "glasses", "raspberry-pi", "vision", "speech"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "grpcio>=1.60.0",
+    "grpcio-tools>=1.60.0",
+    "protobuf>=4.25.0",
+    "pyyaml>=6.0",
+    "aiohttp>=3.9.0",
+    "asyncio-mqtt>=0.16.0",
+    "structlog>=24.1.0",
+    "opentelemetry-api>=1.22.0",
+    "opentelemetry-sdk>=1.22.0",
+    "opentelemetry-exporter-otlp>=1.22.0",
+    "prometheus-client>=0.19.0",
+    "dbus-fast>=2.0.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "httpx>=0.26.0",
+    "websockets>=12.0",
+    "numpy>=1.26.0",
+    "pillow>=10.2.0",
+    # LLM providers
+    "anthropic>=0.75.0",
+    "claude-agent-sdk>=0.1.0",  # For Claude Code SDK integration (Pro subscription)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pytest-timeout>=2.2.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "black>=24.1.0",
+    "pre-commit>=3.6.0",
+    "types-PyYAML>=6.0",
+    "types-protobuf>=4.25.0",
+]
+pi = [
+    # Raspberry Pi specific dependencies
+    "picamera2>=0.3.12",
+    "RPi.GPIO>=0.7.1",
+]
+speech = [
+    "faster-whisper>=0.10.0",
+    "piper-tts>=1.2.0",
+    "webrtcvad>=2.0.10",
+    "sounddevice>=0.4.6",
+]
+hailo = [
+    # Hailo runtime - installed separately via apt
+]
+
+[project.scripts]
+aigctl = "aiglasses.cli:main"
+aiglasses-device-manager = "aiglasses.foundation.device_manager.service:main"
+aiglasses-camera = "aiglasses.foundation.camera.service:main"
+aiglasses-audio = "aiglasses.foundation.audio.service:main"
+aiglasses-speech = "aiglasses.foundation.speech.service:main"
+aiglasses-vision = "aiglasses.foundation.vision.service:main"
+aiglasses-llm-gateway = "aiglasses.foundation.llm_gateway.service:main"
+aiglasses-app-runtime = "aiglasses.foundation.app_runtime.service:main"
+aiglasses-storage = "aiglasses.foundation.storage.service:main"
+aiglasses-ota = "aiglasses.foundation.ota.service:main"
+
+[project.urls]
+Homepage = "https://github.com/michaltakac/juicy-ai-glasses"
+Documentation = "https://aiglasses.readthedocs.io"
+Repository = "https://github.com/michaltakac/juicy-ai-glasses"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.json", "*.proto"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "hil: Hardware-in-the-loop tests",
+    "slow: Slow running tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.coverage.run]
+source = ["src/aiglasses"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+

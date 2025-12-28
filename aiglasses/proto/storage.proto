@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package aiglasses.storage;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.storage";
+
+// Storage Service - privacy-aware storage, retention policies
+service StorageService {
+  // Health check
+  rpc GetHealth(aiglasses.common.Empty) returns (aiglasses.common.HealthResponse);
+  
+  // Get storage status
+  rpc GetStatus(aiglasses.common.Empty) returns (StorageStatus);
+  
+  // Store data with retention policy
+  rpc Store(StoreRequest) returns (StoreResponse);
+  
+  // Retrieve data
+  rpc Retrieve(RetrieveRequest) returns (RetrieveResponse);
+  
+  // Delete data
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  
+  // List stored items
+  rpc List(ListRequest) returns (ListResponse);
+  
+  // Create ephemeral storage handle
+  rpc CreateEphemeral(CreateEphemeralRequest) returns (EphemeralHandle);
+  
+  // Release ephemeral handle (data deleted)
+  rpc ReleaseEphemeral(ReleaseEphemeralRequest) returns (aiglasses.common.Empty);
+  
+  // Purge all data (privacy wipe)
+  rpc Purge(PurgeRequest) returns (PurgeResponse);
+  
+  // Get/set retention policy
+  rpc GetPolicy(aiglasses.common.Empty) returns (RetentionPolicy);
+  rpc SetPolicy(RetentionPolicy) returns (SetPolicyResponse);
+  
+  // Get storage metrics
+  rpc GetMetrics(aiglasses.common.Empty) returns (StorageMetrics);
+}
+
+message StorageStatus {
+  bool available = 1;
+  int64 total_bytes = 2;
+  int64 used_bytes = 3;
+  int64 available_bytes = 4;
+  bool encryption_enabled = 5;
+  RetentionPolicy current_policy = 6;
+  string error_message = 7;
+}
+
+message StoreRequest {
+  string key = 1;
+  bytes data = 2;
+  string content_type = 3;
+  StorageOptions options = 4;
+  map<string, string> metadata = 5;
+}
+
+message StorageOptions {
+  int32 retention_seconds = 1;  // 0 = use default policy
+  bool encrypt = 2;  // Override encryption setting
+  string category = 3;  // "audio", "video", "frame", "text", "other"
+  string app_id = 4;  // Owning app
+}
+
+message StoreResponse {
+  bool success = 1;
+  string key = 2;
+  string message = 3;
+  aiglasses.common.Timestamp expires_at = 4;
+}
+
+message RetrieveRequest {
+  string key = 1;
+}
+
+message RetrieveResponse {
+  bool found = 1;
+  bytes data = 2;
+  string content_type = 3;
+  map<string, string> metadata = 4;
+  aiglasses.common.Timestamp created_at = 5;
+  aiglasses.common.Timestamp expires_at = 6;
+}
+
+message DeleteRequest {
+  string key = 1;
+  bool secure_delete = 2;  // Overwrite with zeros
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListRequest {
+  string prefix = 1;
+  string category = 2;
+  string app_id = 3;
+  int32 limit = 4;
+  string cursor = 5;
+}
+
+message ListResponse {
+  repeated StorageItem items = 1;
+  string next_cursor = 2;
+  int32 total_count = 3;
+}
+
+message StorageItem {
+  string key = 1;
+  int64 size_bytes = 2;
+  string content_type = 3;
+  string category = 4;
+  string app_id = 5;
+  aiglasses.common.Timestamp created_at = 6;
+  aiglasses.common.Timestamp expires_at = 7;
+  map<string, string> metadata = 8;
+}
+
+message CreateEphemeralRequest {
+  int32 ttl_seconds = 1;  // Time to live, default 60
+  int64 max_size_bytes = 2;  // Max size, default 10MB
+  string category = 3;
+}
+
+message EphemeralHandle {
+  string handle_id = 1;
+  string path = 2;  // File path for direct access
+  aiglasses.common.Timestamp expires_at = 3;
+}
+
+message ReleaseEphemeralRequest {
+  string handle_id = 1;
+}
+
+message PurgeRequest {
+  string category = 1;  // Empty = all categories
+  string app_id = 2;  // Empty = all apps
+  bool confirm = 3;  // Must be true to execute
+}
+
+message PurgeResponse {
+  bool success = 1;
+  int64 items_deleted = 2;
+  int64 bytes_freed = 3;
+  string message = 4;
+}
+
+message RetentionPolicy {
+  int32 default_retention_seconds = 1;  // Default 60
+  int32 audio_retention_seconds = 2;
+  int32 video_retention_seconds = 3;
+  int32 frame_retention_seconds = 4;
+  int32 text_retention_seconds = 5;
+  int64 max_storage_bytes = 6;  // Trigger cleanup when exceeded
+  bool encrypt_at_rest = 7;
+  bool secure_delete = 8;  // Overwrite on delete
+}
+
+message SetPolicyResponse {
+  bool success = 1;
+  string message = 2;
+  RetentionPolicy applied_policy = 3;
+}
+
+message StorageMetrics {
+  int64 total_items = 1;
+  int64 total_bytes = 2;
+  map<string, int64> bytes_by_category = 3;
+  map<string, int64> items_by_category = 4;
+  int64 items_expired_24h = 5;
+  int64 bytes_freed_24h = 6;
+}
+
+

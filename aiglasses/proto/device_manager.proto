@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package aiglasses.device_manager;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.device_manager";
+
+// Device Manager Service - boot orchestration, config, health aggregation
+service DeviceManagerService {
+  // Get overall system health
+  rpc GetHealth(aiglasses.common.Empty) returns (SystemHealth);
+  
+  // Get service status
+  rpc GetServiceStatus(ServiceStatusRequest) returns (ServiceStatus);
+  
+  // List all services
+  rpc ListServices(aiglasses.common.Empty) returns (ServiceList);
+  
+  // Get system configuration
+  rpc GetConfig(aiglasses.common.Empty) returns (SystemConfig);
+  
+  // Update configuration
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  
+  // Restart a service
+  rpc RestartService(RestartServiceRequest) returns (RestartServiceResponse);
+  
+  // Get system metrics
+  rpc GetMetrics(aiglasses.common.Empty) returns (SystemMetrics);
+  
+  // Subscribe to system events
+  rpc SubscribeEvents(EventSubscription) returns (stream SystemEvent);
+}
+
+message SystemHealth {
+  aiglasses.common.HealthStatus overall_status = 1;
+  repeated ServiceHealth services = 2;
+  aiglasses.common.Timestamp timestamp = 3;
+  SystemResources resources = 4;
+}
+
+message ServiceHealth {
+  string name = 1;
+  aiglasses.common.HealthStatus status = 2;
+  string message = 3;
+  int64 uptime_seconds = 4;
+  int32 restart_count = 5;
+}
+
+message SystemResources {
+  float cpu_percent = 1;
+  float memory_percent = 2;
+  float disk_percent = 3;
+  float temperature_celsius = 4;
+}
+
+message ServiceStatusRequest {
+  string service_name = 1;
+}
+
+message ServiceStatus {
+  string name = 1;
+  string state = 2;  // "running", "stopped", "failed"
+  aiglasses.common.HealthStatus health = 3;
+  int64 pid = 4;
+  aiglasses.common.Timestamp started_at = 5;
+  map<string, string> metadata = 6;
+}
+
+message ServiceList {
+  repeated ServiceStatus services = 1;
+}
+
+message SystemConfig {
+  string device_name = 1;
+  string mode = 2;  // "production", "development"
+  map<string, string> settings = 3;
+  string config_version = 4;
+}
+
+message UpdateConfigRequest {
+  map<string, string> settings = 1;
+  bool restart_affected = 2;
+}
+
+message UpdateConfigResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string affected_services = 3;
+}
+
+message RestartServiceRequest {
+  string service_name = 1;
+}
+
+message RestartServiceResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SystemMetrics {
+  aiglasses.common.Timestamp timestamp = 1;
+  float cpu_usage = 2;
+  float memory_usage = 3;
+  float disk_usage = 4;
+  float temperature = 5;
+  int64 uptime_seconds = 6;
+  map<string, float> service_metrics = 7;
+}
+
+message EventSubscription {
+  repeated string event_types = 1;  // empty = all events
+}
+
+message SystemEvent {
+  string event_type = 1;
+  string source = 2;
+  aiglasses.common.Timestamp timestamp = 3;
+  map<string, string> data = 4;
+  string severity = 5;  // "info", "warning", "error"
+}
+
+

@@ -1,0 +1,24 @@
+name: What Am I Seeing
+version: 0.1.0
+description: Visual question answering app for AI Glasses
+author: AI Glasses Team
+
+entrypoint: python -m examples.what_am_i_seeing
+
+permissions:
+  required:
+    - camera
+    - microphone
+    - network
+  optional:
+    - storage
+
+resources:
+  memory_mb: 256
+  cpu_percent: 50
+  storage_mb: 50
+
+env:
+  LOG_LEVEL: INFO
+
+

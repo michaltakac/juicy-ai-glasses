@@ -1,0 +1,207 @@
+syntax = "proto3";
+
+package aiglasses.app_runtime;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.app_runtime";
+
+// App Runtime Service - app lifecycle, permissions, sandboxing
+service AppRuntimeService {
+  // Health check
+  rpc GetHealth(aiglasses.common.Empty) returns (aiglasses.common.HealthResponse);
+  
+  // Get runtime status
+  rpc GetStatus(aiglasses.common.Empty) returns (RuntimeStatus);
+  
+  // Install an app
+  rpc Install(InstallRequest) returns (InstallResponse);
+  
+  // Uninstall an app
+  rpc Uninstall(UninstallRequest) returns (UninstallResponse);
+  
+  // List installed apps
+  rpc ListApps(aiglasses.common.Empty) returns (AppList);
+  
+  // Get app info
+  rpc GetApp(GetAppRequest) returns (AppInfo);
+  
+  // Start an app
+  rpc Start(StartRequest) returns (StartResponse);
+  
+  // Stop an app
+  rpc Stop(StopRequest) returns (StopResponse);
+  
+  // Get app logs
+  rpc GetLogs(GetLogsRequest) returns (stream LogEntry);
+  
+  // Grant/revoke permissions
+  rpc GrantPermission(PermissionRequest) returns (PermissionResponse);
+  rpc RevokePermission(PermissionRequest) returns (PermissionResponse);
+  
+  // Subscribe to app events
+  rpc SubscribeEvents(EventSubscription) returns (stream AppEvent);
+  
+  // Get resource usage for an app
+  rpc GetResourceUsage(GetResourceUsageRequest) returns (ResourceUsage);
+}
+
+message RuntimeStatus {
+  int32 running_apps = 1;
+  int32 installed_apps = 2;
+  ResourceUsage total_usage = 3;
+  string error_message = 4;
+}
+
+message InstallRequest {
+  oneof source {
+    string path = 1;  // Local path to app package
+    bytes package_data = 2;  // App package bytes
+    string url = 3;  // URL to download from
+  }
+  bool force = 4;  // Overwrite if exists
+}
+
+message InstallResponse {
+  bool success = 1;
+  string message = 2;
+  AppInfo app = 3;
+}
+
+message UninstallRequest {
+  string app_id = 1;
+  bool remove_data = 2;
+}
+
+message UninstallResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message AppList {
+  repeated AppInfo apps = 1;
+}
+
+message GetAppRequest {
+  string app_id = 1;
+}
+
+message AppInfo {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string description = 4;
+  string author = 5;
+  AppManifest manifest = 6;
+  AppState state = 7;
+  repeated aiglasses.common.Permission granted_permissions = 8;
+  aiglasses.common.Timestamp installed_at = 9;
+  aiglasses.common.Timestamp last_started = 10;
+}
+
+message AppManifest {
+  string name = 1;
+  string version = 2;
+  string description = 3;
+  string author = 4;
+  string entrypoint = 5;
+  repeated aiglasses.common.Permission required_permissions = 6;
+  repeated aiglasses.common.Permission optional_permissions = 7;
+  ResourceLimits resource_limits = 8;
+  map<string, string> env = 9;
+  repeated string dependencies = 10;
+}
+
+message ResourceLimits {
+  int64 memory_mb = 1;  // Max memory in MB
+  float cpu_percent = 2;  // Max CPU percentage
+  int64 storage_mb = 3;  // Max storage in MB
+  int32 network_rate_kbps = 4;  // Max network rate
+}
+
+enum AppState {
+  APP_STATE_UNKNOWN = 0;
+  APP_STATE_INSTALLED = 1;
+  APP_STATE_STARTING = 2;
+  APP_STATE_RUNNING = 3;
+  APP_STATE_STOPPING = 4;
+  APP_STATE_STOPPED = 5;
+  APP_STATE_CRASHED = 6;
+  APP_STATE_ERROR = 7;
+}
+
+message StartRequest {
+  string app_id = 1;
+  map<string, string> env_override = 2;
+  bool foreground = 3;  // Wait for app to finish
+}
+
+message StartResponse {
+  bool success = 1;
+  string message = 2;
+  int64 pid = 3;
+}
+
+message StopRequest {
+  string app_id = 1;
+  bool force = 2;  // SIGKILL instead of SIGTERM
+  int32 timeout_seconds = 3;
+}
+
+message StopResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetLogsRequest {
+  string app_id = 1;
+  int32 lines = 2;  // Number of lines, 0 = stream live
+  bool follow = 3;
+  string level = 4;  // Filter by level: "debug", "info", "warning", "error"
+}
+
+message LogEntry {
+  aiglasses.common.Timestamp timestamp = 1;
+  string level = 2;
+  string message = 3;
+  string app_id = 4;
+  map<string, string> fields = 5;
+}
+
+message PermissionRequest {
+  string app_id = 1;
+  aiglasses.common.Permission permission = 2;
+}
+
+message PermissionResponse {
+  bool success = 1;
+  string message = 2;
+  repeated aiglasses.common.Permission current_permissions = 3;
+}
+
+message EventSubscription {
+  repeated string app_ids = 1;  // Empty = all apps
+  repeated string event_types = 2;  // Empty = all events
+}
+
+message AppEvent {
+  string app_id = 1;
+  string event_type = 2;  // "started", "stopped", "crashed", "permission_denied", etc.
+  aiglasses.common.Timestamp timestamp = 3;
+  map<string, string> data = 4;
+}
+
+message GetResourceUsageRequest {
+  string app_id = 1;
+}
+
+message ResourceUsage {
+  float cpu_percent = 1;
+  int64 memory_bytes = 2;
+  int64 storage_bytes = 3;
+  int64 network_bytes_sent = 4;
+  int64 network_bytes_recv = 5;
+  int64 uptime_seconds = 6;
+}
+
+

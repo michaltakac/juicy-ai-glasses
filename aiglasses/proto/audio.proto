@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package aiglasses.audio;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.audio";
+
+// Audio Service - Bluetooth audio, mic capture, playback
+service AudioService {
+  // Health check
+  rpc GetHealth(aiglasses.common.Empty) returns (aiglasses.common.HealthResponse);
+  
+  // Get audio device status
+  rpc GetStatus(aiglasses.common.Empty) returns (AudioStatus);
+  
+  // List available audio devices
+  rpc ListDevices(aiglasses.common.Empty) returns (DeviceList);
+  
+  // Connect to a Bluetooth device
+  rpc Connect(ConnectRequest) returns (ConnectResponse);
+  
+  // Disconnect from current device
+  rpc Disconnect(aiglasses.common.Empty) returns (DisconnectResponse);
+  
+  // Open microphone stream
+  rpc OpenMic(MicRequest) returns (stream AudioChunk);
+  
+  // Play audio to output device
+  rpc PlayAudio(stream AudioChunk) returns (PlayResponse);
+  
+  // Play audio from bytes (non-streaming)
+  rpc PlayBytes(PlayBytesRequest) returns (PlayResponse);
+  
+  // Set audio profile (HFP for mic, A2DP for playback)
+  rpc SetProfile(SetProfileRequest) returns (SetProfileResponse);
+  
+  // Get/set volume
+  rpc GetVolume(aiglasses.common.Empty) returns (VolumeResponse);
+  rpc SetVolume(SetVolumeRequest) returns (VolumeResponse);
+  
+  // Subscribe to device events (connect/disconnect)
+  rpc SubscribeEvents(aiglasses.common.Empty) returns (stream AudioEvent);
+}
+
+message AudioStatus {
+  bool available = 1;
+  AudioDevice current_device = 2;
+  string active_profile = 3;  // "hfp", "a2dp", "none"
+  bool mic_active = 4;
+  bool playback_active = 5;
+  int32 volume = 6;  // 0-100
+  string error_message = 7;
+}
+
+message DeviceList {
+  repeated AudioDevice devices = 1;
+}
+
+message AudioDevice {
+  string address = 1;  // Bluetooth MAC address
+  string name = 2;
+  string type = 3;  // "bluetooth", "usb", "builtin"
+  bool connected = 4;
+  bool paired = 5;
+  repeated string supported_profiles = 6;
+  int32 battery_level = 7;  // -1 if unknown
+  int32 signal_strength = 8;  // RSSI, -1 if unknown
+}
+
+message ConnectRequest {
+  string address = 1;
+  string profile = 2;  // "hfp", "a2dp", "auto"
+  int32 timeout_seconds = 3;
+}
+
+message ConnectResponse {
+  bool success = 1;
+  string message = 2;
+  AudioDevice device = 3;
+}
+
+message DisconnectResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message MicRequest {
+  int32 sample_rate = 1;  // Default 16000
+  int32 channels = 2;  // Default 1
+  string format = 3;  // "pcm_s16le", "opus"
+  int32 chunk_size_ms = 4;  // Default 100ms
+}
+
+message AudioChunk {
+  bytes data = 1;
+  int64 timestamp_ms = 2;
+  int32 sample_rate = 3;
+  int32 channels = 4;
+  string format = 5;
+  int32 sequence = 6;
+}
+
+message PlayResponse {
+  bool success = 1;
+  string message = 2;
+  int64 duration_ms = 3;
+}
+
+message PlayBytesRequest {
+  bytes audio_data = 1;
+  string format = 2;  // "wav", "mp3", "opus", "pcm_s16le"
+  int32 sample_rate = 3;
+  bool wait = 4;  // Wait for playback to complete
+}
+
+message SetProfileRequest {
+  string profile = 1;  // "hfp", "a2dp"
+}
+
+message SetProfileResponse {
+  bool success = 1;
+  string message = 2;
+  string active_profile = 3;
+}
+
+message VolumeResponse {
+  int32 volume = 1;  // 0-100
+}
+
+message SetVolumeRequest {
+  int32 volume = 1;  // 0-100
+}
+
+message AudioEvent {
+  string event_type = 1;  // "connected", "disconnected", "profile_changed", "battery_low"
+  AudioDevice device = 2;
+  aiglasses.common.Timestamp timestamp = 3;
+  map<string, string> data = 4;
+}
+
+

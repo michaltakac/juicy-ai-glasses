@@ -1,0 +1,111 @@
+# AI Glasses Platform Configuration
+# Copy this file to /etc/aiglasses/config.yaml
+
+device:
+  name: "my-aiglasses"
+  mode: "production"  # "development" for verbose logging
+  log_level: "INFO"
+
+audio:
+  # Bluetooth device name to auto-connect (e.g., "AirPods")
+  bluetooth_device: null
+  # Fall back to built-in audio if Bluetooth unavailable
+  fallback_enabled: true
+  sample_rate: 16000
+  channels: 1
+  chunk_size_ms: 100
+
+camera:
+  resolution: [1920, 1080]
+  fps: 30
+  format: "jpeg"
+  quality: 85
+  # IMX500 on-sensor inference model
+  imx500_model: "mobilenet_v2"
+  imx500_enabled: true
+
+speech:
+  # STT model size: "tiny", "base", "small", "medium"
+  stt_model: "tiny"
+  stt_language: "en"
+  # TTS voice ID
+  tts_voice: "default"
+  tts_speed: 1.0
+  # Wake words to listen for
+  wake_words:
+    - "hey glasses"
+    - "ok glasses"
+  wake_sensitivity: 0.5
+  # Voice activity detection
+  vad_enabled: true
+
+vision:
+  # Default detection model
+  default_model: "mobilenet_v2"
+  # Minimum confidence for detections
+  default_confidence: 0.5
+  # Enable Hailo AI HAT+ (requires hailo-rpi packages)
+  hailo_enabled: false
+  # Fuse IMX500 + Hailo detections
+  fusion_enabled: false
+  max_concurrent: 4
+
+llm:
+  # Provider: "lan", "openai", "anthropic", "ollama"
+  provider: "lan"
+  # LAN server endpoint (e.g., MacBook running Ollama/LM Studio)
+  lan_endpoint: "http://macbook.local:8080/v1"
+  # OpenAI API endpoint
+  openai_endpoint: "https://api.openai.com/v1"
+  # Anthropic API endpoint
+  anthropic_endpoint: "https://api.anthropic.com/v1"
+  # Ollama endpoint
+  ollama_endpoint: "http://localhost:11434"
+  # API key (can also use AIGLASSES_LLM_API_KEY env var)
+  api_key: null
+  # Default model
+  default_model: "gpt-4o-mini"
+  default_temperature: 0.7
+  default_max_tokens: 1024
+  timeout_seconds: 30
+  retry_count: 3
+  # Fallback provider if primary fails
+  fallback_provider: null
+
+privacy:
+  # Default data retention in seconds
+  retention_seconds: 60
+  audio_retention_seconds: 30
+  video_retention_seconds: 30
+  frame_retention_seconds: 60
+  # Encrypt stored data (requires LUKS setup)
+  encrypt_storage: false
+  # Overwrite data with zeros on delete
+  secure_delete: true
+  # Visual/audio indicator when capturing
+  capture_indicator: true
+  # Maximum storage in MB
+  max_storage_mb: 500
+
+ota:
+  # Update channel: "stable", "beta", "dev"
+  channel: "stable"
+  auto_check: true
+  check_interval_hours: 24
+  auto_download: false
+  auto_apply: false
+  update_server: "https://updates.aiglasses.io"
+
+ports:
+  device_manager: 50051
+  camera: 50052
+  audio: 50053
+  speech: 50054
+  vision: 50055
+  llm_gateway: 50056
+  app_runtime: 50057
+  storage: 50058
+  ota: 50059
+  http_api: 8080
+
+

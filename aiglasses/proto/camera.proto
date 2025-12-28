@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package aiglasses.camera;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.camera";
+
+// Camera Service - frame capture, IMX500 inference
+service CameraService {
+  // Health check
+  rpc GetHealth(aiglasses.common.Empty) returns (aiglasses.common.HealthResponse);
+  
+  // Capture a single frame (screenshot)
+  rpc Snapshot(SnapshotRequest) returns (SnapshotResponse);
+  
+  // Get frame by reference
+  rpc GetFrame(GetFrameRequest) returns (FrameData);
+  
+  // Stream frames continuously
+  rpc StreamFrames(StreamFramesRequest) returns (stream FrameData);
+  
+  // Get IMX500 on-sensor detections for a frame
+  rpc GetDetections(GetDetectionsRequest) returns (DetectionsResponse);
+  
+  // Subscribe to detection events
+  rpc SubscribeDetections(DetectionSubscription) returns (stream DetectionEvent);
+  
+  // Get camera status and capabilities
+  rpc GetStatus(aiglasses.common.Empty) returns (CameraStatus);
+  
+  // Configure camera settings
+  rpc Configure(CameraConfig) returns (ConfigureResponse);
+}
+
+message SnapshotRequest {
+  string format = 1;  // "jpeg", "png", "raw" - default "jpeg"
+  int32 quality = 2;  // 1-100 for jpeg - default 85
+  bool include_detections = 3;  // Run IMX500 inference
+}
+
+message SnapshotResponse {
+  aiglasses.common.FrameRef frame_ref = 1;
+  bytes image_data = 2;  // Optional inline data for small frames
+  repeated aiglasses.common.Detection detections = 3;
+  CaptureMetadata metadata = 4;
+}
+
+message CaptureMetadata {
+  int64 capture_time_ms = 1;
+  int64 inference_time_ms = 2;
+  float exposure = 3;
+  float gain = 4;
+  string camera_mode = 5;
+}
+
+message GetFrameRequest {
+  string frame_id = 1;
+  string format = 2;
+  int32 quality = 3;
+}
+
+message FrameData {
+  aiglasses.common.FrameRef frame_ref = 1;
+  bytes data = 2;
+  string format = 3;
+  CaptureMetadata metadata = 4;
+}
+
+message StreamFramesRequest {
+  int32 fps = 1;  // Target FPS
+  string format = 2;
+  int32 quality = 3;
+  int32 max_frames = 4;  // 0 = unlimited
+  bool include_detections = 5;
+}
+
+message GetDetectionsRequest {
+  string frame_id = 1;  // Empty = use latest frame
+  string model = 2;  // Empty = use default IMX500 model
+}
+
+message DetectionsResponse {
+  aiglasses.common.FrameRef frame_ref = 1;
+  repeated aiglasses.common.Detection detections = 2;
+  int64 inference_time_ms = 3;
+  string model_used = 4;
+}
+
+message DetectionSubscription {
+  float min_confidence = 1;  // 0.0-1.0, default 0.5
+  repeated string labels = 2;  // Empty = all labels
+  int32 max_fps = 3;  // Throttle detection events
+}
+
+message DetectionEvent {
+  aiglasses.common.FrameRef frame_ref = 1;
+  repeated aiglasses.common.Detection detections = 2;
+  aiglasses.common.Timestamp timestamp = 3;
+}
+
+message CameraStatus {
+  bool available = 1;
+  string state = 2;  // "idle", "streaming", "capturing", "error"
+  CameraCapabilities capabilities = 3;
+  CameraConfig current_config = 4;
+  string error_message = 5;
+}
+
+message CameraCapabilities {
+  repeated Resolution supported_resolutions = 1;
+  int32 max_fps = 2;
+  repeated string supported_formats = 3;
+  bool has_imx500 = 4;
+  repeated string available_models = 5;
+}
+
+message Resolution {
+  int32 width = 1;
+  int32 height = 2;
+}
+
+message CameraConfig {
+  int32 width = 1;
+  int32 height = 2;
+  int32 fps = 3;
+  string format = 4;
+  string imx500_model = 5;
+  bool auto_exposure = 6;
+  float manual_exposure = 7;
+  float manual_gain = 8;
+}
+
+message ConfigureResponse {
+  bool success = 1;
+  string message = 2;
+  CameraConfig applied_config = 3;
+}
+
+

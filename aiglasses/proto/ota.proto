@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package aiglasses.ota;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.ota";
+
+// OTA Service - system and app updates
+service OTAService {
+  // Health check
+  rpc GetHealth(aiglasses.common.Empty) returns (aiglasses.common.HealthResponse);
+  
+  // Get OTA status
+  rpc GetStatus(aiglasses.common.Empty) returns (OTAStatus);
+  
+  // Check for updates
+  rpc CheckUpdates(CheckUpdatesRequest) returns (CheckUpdatesResponse);
+  
+  // Download an update
+  rpc DownloadUpdate(DownloadRequest) returns (stream DownloadProgress);
+  
+  // Apply an update
+  rpc ApplyUpdate(ApplyRequest) returns (stream ApplyProgress);
+  
+  // Rollback to previous version
+  rpc Rollback(RollbackRequest) returns (RollbackResponse);
+  
+  // Get update history
+  rpc GetHistory(aiglasses.common.Empty) returns (UpdateHistory);
+  
+  // Configure OTA settings
+  rpc Configure(OTAConfig) returns (ConfigureResponse);
+  
+  // Get current versions
+  rpc GetVersions(aiglasses.common.Empty) returns (VersionInfo);
+}
+
+message OTAStatus {
+  bool available = 1;
+  string state = 2;  // "idle", "checking", "downloading", "applying", "error"
+  UpdateInfo pending_update = 3;
+  float download_progress = 4;  // 0.0-1.0
+  string error_message = 5;
+  aiglasses.common.Timestamp last_check = 6;
+}
+
+message CheckUpdatesRequest {
+  string channel = 1;  // "stable", "beta", "dev" - empty = use configured
+  bool include_apps = 2;  // Check for app updates too
+}
+
+message CheckUpdatesResponse {
+  bool updates_available = 1;
+  repeated UpdateInfo system_updates = 2;
+  repeated UpdateInfo app_updates = 3;
+  aiglasses.common.Timestamp checked_at = 4;
+}
+
+message UpdateInfo {
+  string id = 1;
+  string type = 2;  // "system", "foundation", "model", "app"
+  string name = 3;
+  string current_version = 4;
+  string new_version = 5;
+  string description = 6;
+  int64 size_bytes = 7;
+  string release_notes = 8;
+  bool requires_reboot = 9;
+  string channel = 10;
+  aiglasses.common.Timestamp released_at = 11;
+}
+
+message DownloadRequest {
+  string update_id = 1;
+}
+
+message DownloadProgress {
+  string update_id = 1;
+  float progress = 2;  // 0.0-1.0
+  int64 bytes_downloaded = 3;
+  int64 total_bytes = 4;
+  string state = 5;  // "downloading", "verifying", "complete", "error"
+  string error = 6;
+}
+
+message ApplyRequest {
+  string update_id = 1;
+  bool auto_reboot = 2;  // Reboot if required
+}
+
+message ApplyProgress {
+  string update_id = 1;
+  string state = 2;  // "preparing", "applying", "complete", "error", "rebooting"
+  float progress = 3;
+  string current_step = 4;
+  string error = 5;
+}
+
+message RollbackRequest {
+  string component = 1;  // "system", "foundation", specific service name
+}
+
+message RollbackResponse {
+  bool success = 1;
+  string message = 2;
+  string rolled_back_version = 3;
+  bool reboot_required = 4;
+}
+
+message UpdateHistory {
+  repeated UpdateRecord records = 1;
+}
+
+message UpdateRecord {
+  string id = 1;
+  string type = 2;
+  string name = 3;
+  string from_version = 4;
+  string to_version = 5;
+  string status = 6;  // "success", "failed", "rolled_back"
+  aiglasses.common.Timestamp applied_at = 7;
+  string error = 8;
+}
+
+message OTAConfig {
+  string channel = 1;  // "stable", "beta", "dev"
+  bool auto_check = 2;
+  int32 check_interval_hours = 3;
+  bool auto_download = 4;
+  bool auto_apply = 5;  // For non-critical updates
+  string update_server = 6;
+}
+
+message ConfigureResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message VersionInfo {
+  string system_version = 1;
+  string foundation_version = 2;
+  map<string, string> service_versions = 3;
+  map<string, string> model_versions = 4;
+  string channel = 5;
+  aiglasses.common.Timestamp build_date = 6;
+}
+
+

@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package aiglasses.speech;
+
+import "common.proto";
+
+option python_package = "aiglasses.proto.speech";
+
+// Speech Service - STT, TTS, wake word detection
+service SpeechService {
+  // Health check
+  rpc GetHealth(aiglasses.common.Empty) returns (aiglasses.common.HealthResponse);
+  
+  // Get service status
+  rpc GetStatus(aiglasses.common.Empty) returns (SpeechStatus);
+  
+  // Transcribe audio to text (STT)
+  rpc Transcribe(stream TranscribeRequest) returns (stream TranscribeResponse);
+  
+  // Transcribe from bytes (non-streaming)
+  rpc TranscribeBytes(TranscribeBytesRequest) returns (TranscribeResponse);
+  
+  // Synthesize text to speech (TTS)
+  rpc Synthesize(SynthesizeRequest) returns (stream SynthesizeResponse);
+  
+  // Synthesize and get complete audio
+  rpc SynthesizeComplete(SynthesizeRequest) returns (SynthesizeCompleteResponse);
+  
+  // Start wake word detection
+  rpc StartWakeDetection(WakeDetectionRequest) returns (aiglasses.common.Empty);
+  
+  // Stop wake word detection
+  rpc StopWakeDetection(aiglasses.common.Empty) returns (aiglasses.common.Empty);
+  
+  // Subscribe to wake word events
+  rpc SubscribeWake(aiglasses.common.Empty) returns (stream WakeEvent);
+  
+  // Configure STT/TTS settings
+  rpc Configure(SpeechConfig) returns (ConfigureResponse);
+  
+  // List available voices for TTS
+  rpc ListVoices(aiglasses.common.Empty) returns (VoiceList);
+  
+  // List available STT models
+  rpc ListModels(aiglasses.common.Empty) returns (ModelList);
+}
+
+message SpeechStatus {
+  bool stt_available = 1;
+  bool tts_available = 2;
+  bool wake_detection_active = 3;
+  string current_stt_model = 4;
+  string current_tts_voice = 5;
+  string error_message = 6;
+}
+
+message TranscribeRequest {
+  bytes audio_data = 1;
+  int32 sample_rate = 2;
+  string format = 3;  // "pcm_s16le", "opus"
+  string language = 4;  // "en", "auto"
+  bool final = 5;  // Last chunk of audio
+}
+
+message TranscribeResponse {
+  string text = 1;
+  bool is_final = 2;
+  float confidence = 3;
+  string language = 4;
+  int64 latency_ms = 5;
+  repeated WordTiming words = 6;
+}
+
+message WordTiming {
+  string word = 1;
+  float start_time = 2;
+  float end_time = 3;
+  float confidence = 4;
+}
+
+message TranscribeBytesRequest {
+  bytes audio_data = 1;
+  string format = 2;  // "wav", "mp3", "opus"
+  string language = 3;
+}
+
+message SynthesizeRequest {
+  string text = 1;
+  string voice = 2;  // Voice ID, empty = default
+  float speed = 3;  // 0.5-2.0, default 1.0
+  float pitch = 4;  // 0.5-2.0, default 1.0
+  string format = 5;  // "wav", "mp3", "opus"
+  int32 sample_rate = 6;  // Default 22050
+}
+
+message SynthesizeResponse {
+  bytes audio_data = 1;
+  bool is_final = 2;
+  int32 sequence = 3;
+  int64 latency_ms = 4;
+}
+
+message SynthesizeCompleteResponse {
+  bytes audio_data = 1;
+  string format = 2;
+  int32 sample_rate = 3;
+  int64 duration_ms = 4;
+  int64 latency_ms = 5;
+}
+
+message WakeDetectionRequest {
+  repeated string wake_words = 1;  // Default: ["hey glasses", "ok glasses"]
+  float sensitivity = 2;  // 0.0-1.0, default 0.5
+  bool continuous = 3;  // Keep detecting after wake
+}
+
+message WakeEvent {
+  string wake_word = 1;
+  float confidence = 2;
+  aiglasses.common.Timestamp timestamp = 3;
+  bytes audio_after_wake = 4;  // Optional: audio captured after wake word
+}
+
+message SpeechConfig {
+  string stt_model = 1;
+  string stt_language = 2;
+  string tts_voice = 3;
+  float tts_speed = 4;
+  repeated string wake_words = 5;
+  float wake_sensitivity = 6;
+}
+
+message ConfigureResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message VoiceList {
+  repeated Voice voices = 1;
+}
+
+message Voice {
+  string id = 1;
+  string name = 2;
+  string language = 3;
+  string gender = 4;
+  string description = 5;
+}
+
+message ModelList {
+  repeated Model models = 1;
+}
+
+message Model {
+  string id = 1;
+  string name = 2;
+  string type = 3;  // "stt", "wake"
+  repeated string languages = 4;
+  int64 size_bytes = 5;
+  bool loaded = 6;
+}
+
+

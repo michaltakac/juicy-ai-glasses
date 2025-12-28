@@ -1,0 +1,28 @@
+[Unit]
+Description=AI Glasses Device Manager
+After=network-online.target
+Wants=network-online.target
+PartOf=aiglasses.target
+
+[Service]
+Type=simple
+User=aiglasses
+Group=aiglasses
+Environment=AIGLASSES_CONFIG=/etc/aiglasses/config.yaml
+ExecStart=/usr/local/bin/aiglasses-device-manager
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/aiglasses /var/log/aiglasses
+
+[Install]
+WantedBy=aiglasses.target
+
+
